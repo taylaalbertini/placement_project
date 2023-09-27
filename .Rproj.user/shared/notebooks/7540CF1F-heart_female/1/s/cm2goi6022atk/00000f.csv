@@ -1,0 +1,71 @@
+"0","# import the counts table"
+"0","## ERR2704717"
+"0","ERR2704717 <- read_delim(file = ERR2704717,"
+"0","                        col_names = FALSE,"
+"0","                        delim = ""\t"") %>%"
+"0","  as.data.frame() %>%"
+"0","  dplyr::select(ensemble=X1,ERR2704717=X2)"
+"2","Rows: 58721 Columns: 2"
+"2","── Column specification ────────────────────────────────────────────────────────────────────
+Delimiter: ""\t""
+chr (1): X1
+dbl (1): X2"
+"2","
+ℹ Use `spec()` to retrieve the full column specification for this data.
+ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message."
+"0","## ERR10763248"
+"0","ERR10763248 <- read_delim(file = ERR10763248,"
+"0","                          col_names = FALSE,"
+"0","                          delim = ""\t"") %>%"
+"0","  as.data.frame() %>%"
+"0","  dplyr::select(ensemble=X1,ERR10763248=X2)"
+"2","Rows: 58721 Columns: 2"
+"2","── Column specification ────────────────────────────────────────────────────────────────────
+Delimiter: ""\t""
+chr (1): X1
+dbl (1): X2"
+"2","
+ℹ Use `spec()` to retrieve the full column specification for this data.
+ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message."
+"0","## SRR3192434"
+"0","SRR3192434  <- read_delim(file = SRR3192434,"
+"0","                        col_names = FALSE,"
+"0","                        delim = ""\t"") %>%"
+"0","  as.data.frame() %>%"
+"0","  dplyr::select(ensemble=X1,SRR3192434=X2)"
+"2","Rows: 58721 Columns: 2"
+"2","── Column specification ────────────────────────────────────────────────────────────────────
+Delimiter: ""\t""
+chr (1): X1
+dbl (1): X2"
+"2","
+ℹ Use `spec()` to retrieve the full column specification for this data.
+ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message."
+"0","## SRR9887706 "
+"0","SRR9887706 <- read_delim(file = SRR9887706,"
+"0","                        col_names = FALSE,"
+"0","                        delim = ""\t"") %>%"
+"0","  as.data.frame() %>%"
+"0","  dplyr::select(ensemble=X1,SRR9887706=X2)"
+"2","Rows: 58721 Columns: 2"
+"2","── Column specification ────────────────────────────────────────────────────────────────────
+Delimiter: ""\t""
+chr (1): X1
+dbl (1): X2"
+"2","
+ℹ Use `spec()` to retrieve the full column specification for this data.
+ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message."
+"0","## SRR9887711"
+"0","SRR9887711 <- read_delim(file = SRR9887711,"
+"0","                        col_names = FALSE,"
+"0","                        delim = ""\t"") %>%"
+"0","  as.data.frame() %>%"
+"0","  dplyr::select(ensemble=X1,SRR9887711=X2)"
+"2","Rows: 58721 Columns: 2"
+"2","── Column specification ────────────────────────────────────────────────────────────────────
+Delimiter: ""\t""
+chr (1): X1
+dbl (1): X2"
+"2","
+ℹ Use `spec()` to retrieve the full column specification for this data.
+ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message."

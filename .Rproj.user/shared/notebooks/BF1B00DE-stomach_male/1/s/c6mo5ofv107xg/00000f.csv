@@ -1,0 +1,43 @@
+"0","# import the counts table"
+"0","## SRR2014229"
+"0","SRR2014229 <- read_delim(file = SRR2014229,"
+"0","                        col_names = FALSE,"
+"0","                        delim = ""\t"") %>%"
+"0","  as.data.frame() %>%"
+"0","  dplyr::select(ensemble=X1,SRR2014229=X2)"
+"2","[1mRows: [22m[34m58721[39m [1mColumns: [22m[34m2[39m"
+"2","[36m──[39m [1mColumn specification[22m [36m────────────────────────────────────────────────────────────────────────────────────────────────────────[39m
+[1mDelimiter:[22m ""\t""
+[31mchr[39m (1): X1
+[32mdbl[39m (1): X2"
+"2","
+[36mℹ[39m Use `spec()` to retrieve the full column specification for this data.
+[36mℹ[39m Specify the column types or set `show_col_types = FALSE` to quiet this message."
+"0","## SRR2014231"
+"0","SRR2014231 <- read_delim(file = SRR2014231,"
+"0","                          col_names = FALSE,"
+"0","                          delim = ""\t"") %>%"
+"0","  as.data.frame() %>%"
+"0","  dplyr::select(ensemble=X1,SRR2014231=X2)"
+"2","[1mRows: [22m[34m58721[39m [1mColumns: [22m[34m2[39m"
+"2","[36m──[39m [1mColumn specification[22m [36m────────────────────────────────────────────────────────────────────────────────────────────────────────[39m
+[1mDelimiter:[22m ""\t""
+[31mchr[39m (1): X1
+[32mdbl[39m (1): X2"
+"2","
+[36mℹ[39m Use `spec()` to retrieve the full column specification for this data.
+[36mℹ[39m Specify the column types or set `show_col_types = FALSE` to quiet this message."
+"0","## SRR3192449"
+"0","SRR3192449  <- read_delim(file = SRR3192449,"
+"0","                        col_names = FALSE,"
+"0","                        delim = ""\t"") %>%"
+"0","  as.data.frame() %>%"
+"0","  dplyr::select(ensemble=X1,SRR3192449=X2)"
+"2","[1mRows: [22m[34m58721[39m [1mColumns: [22m[34m2[39m"
+"2","[36m──[39m [1mColumn specification[22m [36m────────────────────────────────────────────────────────────────────────────────────────────────────────[39m
+[1mDelimiter:[22m ""\t""
+[31mchr[39m (1): X1
+[32mdbl[39m (1): X2"
+"2","
+[36mℹ[39m Use `spec()` to retrieve the full column specification for this data.
+[36mℹ[39m Specify the column types or set `show_col_types = FALSE` to quiet this message."

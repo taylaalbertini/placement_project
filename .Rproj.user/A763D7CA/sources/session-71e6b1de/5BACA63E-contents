@@ -1,0 +1,137 @@
+---
+title: "heart_male"
+output: html_document
+date: "2023-09-20"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# load libraries
+```{r}
+library(plyr)
+library(reshape2)
+library(dplyr)
+library(stringr)
+library(readxl)
+library(readr)
+library(magrittr)
+library(ggplot2)
+
+# set project directory
+projectDir <- "/Users/taylaalbertini/Desktop/R studio/count_preprocessing"
+ERR2704712 <- file.path(projectDir, "rawData/heart_male/ERR2704712.tab")
+ERR2704714 <- file.path(projectDir, "rawData/heart_male/ERR2704714.tab")
+ERR2704715 <- file.path(projectDir, "rawData/heart_male/ERR2704715.tab")
+ERR2704716 <- file.path(projectDir, "rawData/heart_male/ERR2704716.tab")
+ERR2704719 <- file.path(projectDir, "rawData/heart_male/ERR2704719.tab")
+```
+
+# import rawCounts
+```{r}
+# import the counts table
+## ERR2704712
+ERR2704712 <- read_delim(file = ERR2704712,
+                        col_names = FALSE,
+                        delim = "\t") %>%
+  as.data.frame() %>%
+  dplyr::select(ensemble=X1,ERR2704712=X2)
+
+## ERR2704714
+ERR2704714 <- read_delim(file = ERR2704714,
+                          col_names = FALSE,
+                          delim = "\t") %>%
+  as.data.frame() %>%
+  dplyr::select(ensemble=X1,ERR2704714=X2)
+
+## ERR2704715
+ERR2704715  <- read_delim(file = ERR2704715,
+                        col_names = FALSE,
+                        delim = "\t") %>%
+  as.data.frame() %>%
+  dplyr::select(ensemble=X1,ERR2704715=X2)
+
+## ERR2704716
+ERR2704716 <- read_delim(file = ERR2704716,
+                        col_names = FALSE,
+                        delim = "\t") %>%
+  as.data.frame() %>%
+  dplyr::select(ensemble=X1,ERR2704716=X2)
+
+## ERR2704719
+ERR2704719 <- read_delim(file = ERR2704719,
+                        col_names = FALSE,
+                        delim = "\t") %>%
+  as.data.frame() %>%
+  dplyr::select(ensemble=X1,ERR2704719=X2)
+```
+
+# stitching the samples together
+```{r}
+# merge the columns
+mergedCounts_heartMale <- dplyr::left_join(ERR2704712,ERR2704714, by="ensemble") %>%
+  dplyr::left_join(.,ERR2704715, by="ensemble") %>%
+  dplyr::left_join(.,ERR2704716, by="ensemble") %>%
+  dplyr::left_join(.,ERR2704719, by="ensemble")
+
+# remove rows with all zeros
+mergedCounts_heartMale <- mergedCounts_heartMale[rowSums(mergedCounts_heartMale[,-1])>0,] 
+rownames(mergedCounts_heartMale) <- NULL
+```
+
+# remove the number after the period
+```{r}
+mergedCounts_heartMale %<>% tidyr::separate(., col = ensemble, into = c("ensemble", "right")) %>%
+  dplyr::select(., -right) %>%
+  distinct(ensemble, .keep_all = TRUE) %>%
+  tibble::column_to_rownames("ensemble")
+```
+
+# library size scatter plot 
+```{r}
+# make a small data frame with information needed for the plot
+plotData_heartMale <- mergedCounts_heartMale %>%
+  colSums(.) %>%
+  as.data.frame() %>%
+  tibble::rownames_to_column() %>%
+  set_colnames(c("sample", "totalCounts")) %>%
+  arrange(., totalCounts)
+
+# make the plot
+ggplot(data = plotData_heartMale,
+       aes(x=reorder(sample, totalCounts),
+           y=totalCounts,
+           colour=totalCounts<9000000)) +
+
+  geom_point(size=5) +
+  scale_colour_manual(name='Read count\nthreshold',
+                      values=setNames(c('red','green'),
+                                      c(TRUE, FALSE))) +
+
+  geom_hline(yintercept=9000000,
+             show.legend=FALSE,
+             linetype="dotted",
+             colour="red") +
+
+
+  ggtitle("Raw counts heart male - all samples\n(hg38)") +
+  theme_bw(base_size=16) +
+  labs(title="Library size",
+       subtitle="Raw mRNA read counts in heart male",
+       x="Sample name",
+       y="mRNA read counts") +
+  
+  theme(axis.text.x=element_text(angle=270,
+                                 hjust=1.5,
+                                 colour="black",
+                                 size=12),
+
+        axis.text.y = element_text(angle=0,
+                                   colour="black",
+                                   size=14))
+```
+# output file
+```{r}
+write.csv(mergedCounts_heartMale, file = file.path(projectDir, "rawData/combinedRaw/rawCounts_heartMale.csv"))
+```

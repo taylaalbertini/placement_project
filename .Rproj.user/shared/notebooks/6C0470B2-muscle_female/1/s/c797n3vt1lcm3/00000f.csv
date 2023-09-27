@@ -1,0 +1,8 @@
+"0","# merge the columns"
+"0","mergedCounts_muscleFemale <- dplyr::left_join(ERR10763251,SRR980476, by=""ensemble"") %>%"
+"0","  dplyr::left_join(.,SRR3192453, by=""ensemble"") %>%"
+"0","  dplyr::left_join(.,SRR4421495, by=""ensemble"") "
+"0",""
+"0","# remove rows with all zeros"
+"0","mergedCounts_muscleFemale <- mergedCounts_muscleFemale[rowSums(mergedCounts_muscleFemale[,-1])>0,] "
+"0","rownames(mergedCounts_muscleFemale) <- NULL"

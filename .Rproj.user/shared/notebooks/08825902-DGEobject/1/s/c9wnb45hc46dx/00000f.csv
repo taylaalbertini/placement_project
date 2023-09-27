@@ -1,0 +1,6 @@
+"0","norm_dge_list_object <- calcNormFactors(dge_list_object,
+                                        method = ""TMM"")
+"
+"2","Error in calcNormFactors(dge_list_object, method = ""TMM"") : 
+  could not find function ""calcNormFactors""
+"

@@ -1,0 +1,6 @@
+"0","mergedCounts_stomachMale <- dplyr::left_join(SRR2014229,SRR2014231, by=""ensemble"") %>%"
+"0","  dplyr::left_join(.,SRR3192449, by=""ensemble"")"
+"0",""
+"0","# remove rows with all zeros"
+"0","mergedCounts_stomachMale <- mergedCounts_stomachMale[rowSums(mergedCounts_stomachMale[,-1])>0,] "
+"0","rownames(mergedCounts_stomachMale) <- NULL"

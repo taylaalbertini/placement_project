@@ -1,0 +1,118 @@
+---
+title: "stomach_male"
+output: html_document
+date: "2023-09-20"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(plyr)
+library(reshape2)
+library(dplyr)
+library(stringr)
+library(readxl)
+library(readr)
+library(magrittr)
+library(ggplot2)
+
+# set project directory
+projectDir <- "/Users/taylaalbertini/Desktop/R studio/count_preprocessing"
+SRR2014229 <- file.path(projectDir, "rawData/stomach_male/SRR2014229.tab")
+SRR2014231 <- file.path(projectDir, "rawData/stomach_male/SRR2014231.tab")
+SRR3192449 <- file.path(projectDir, "rawData/stomach_male/SRR3192449.tab")
+```
+
+# import rawCounts
+```{r}
+# import the counts table
+## SRR2014229
+SRR2014229 <- read_delim(file = SRR2014229,
+                        col_names = FALSE,
+                        delim = "\t") %>%
+  as.data.frame() %>%
+  dplyr::select(ensemble=X1,SRR2014229=X2)
+
+## SRR2014231
+SRR2014231 <- read_delim(file = SRR2014231,
+                          col_names = FALSE,
+                          delim = "\t") %>%
+  as.data.frame() %>%
+  dplyr::select(ensemble=X1,SRR2014231=X2)
+
+## SRR3192449
+SRR3192449  <- read_delim(file = SRR3192449,
+                        col_names = FALSE,
+                        delim = "\t") %>%
+  as.data.frame() %>%
+  dplyr::select(ensemble=X1,SRR3192449=X2)
+```
+
+# stitching the samples together
+```{r}
+mergedCounts_stomachMale <- dplyr::left_join(SRR2014229,SRR2014231, by="ensemble") %>%
+  dplyr::left_join(.,SRR3192449, by="ensemble")
+
+# remove rows with all zeros
+mergedCounts_stomachMale <- mergedCounts_stomachMale[rowSums(mergedCounts_stomachMale[,-1])>0,] 
+rownames(mergedCounts_stomachMale) <- NULL
+```
+
+# remove the number after the period
+```{r}
+mergedCounts_stomachMale %<>% tidyr::separate(., col = ensemble, into = c("ensemble", "right")) %>%
+  dplyr::select(., -right) %>%
+distinct(ensemble, .keep_all = TRUE) %>%
+  tibble::column_to_rownames("ensemble")
+```
+
+# library size scatter plot 
+```{r}
+# make a small data frame with information needed for the plot
+plotData_stomachMale <- mergedCounts_stomachMale %>%
+  colSums(.) %>%
+  as.data.frame() %>%
+  tibble::rownames_to_column() %>%
+  set_colnames(c("sample", "totalCounts")) %>%
+  arrange(., totalCounts)
+
+# make the plot
+ggplot(data = plotData_stomachMale,
+       aes(x=reorder(sample, totalCounts),
+           y=totalCounts,
+           colour=totalCounts<9000000)) +
+
+  geom_point(size=5) +
+  scale_colour_manual(name='Read count\nthreshold',
+                      values=setNames(c('red','green'),
+                                      c(TRUE, FALSE))) +
+
+  geom_hline(yintercept=9000000,
+             show.legend=FALSE,
+             linetype="dotted",
+             colour="red") +
+
+
+  ggtitle("Raw counts stomach male - all samples\n(hg38)") +
+  theme_bw(base_size=16) +
+  labs(title="Library size",
+       subtitle="Raw mRNA read counts in stomach male",
+       x="Sample name",
+       y="mRNA read counts") +
+  
+  theme(axis.text.x=element_text(angle=270,
+                                 hjust=1.5,
+                                 colour="black",
+                                 size=12),
+
+        axis.text.y = element_text(angle=0,
+                                   colour="black",
+                                   size=14))
+```
+
+# output file
+```{r}
+write.csv(mergedCounts_stomachMale, file = file.path(projectDir, "rawData/combinedRaw/rawCounts_stomachMale.csv"))
+```

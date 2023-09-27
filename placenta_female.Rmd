@@ -1,0 +1,163 @@
+---
+title: "placenta_female"
+output: html_document
+date: "2023-09-20"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(plyr)
+library(reshape2)
+library(dplyr)
+library(stringr)
+library(readxl)
+library(readr)
+library(magrittr)
+library(ggplot2)
+
+# set project directory
+projectDir <- "/Users/taylaalbertini/Desktop/R studio/count_preprocessing"
+SRR3111523 <- file.path(projectDir, "rawData/placenta_female/SRR3111523.tab")
+SRR3111524 <- file.path(projectDir, "rawData/placenta_female/SRR3111524.tab")
+SRR3111527 <- file.path(projectDir, "rawData/placenta_female/SRR3111527.tab")
+SRR3111530 <- file.path(projectDir, "rawData/placenta_female/SRR3111530.tab")
+SRR3111531 <- file.path(projectDir, "rawData/placenta_female/SRR3111531.tab")
+SRR3111532 <- file.path(projectDir, "rawData/placenta_female/SRR3111532.tab")
+SRR3111536 <- file.path(projectDir, "rawData/placenta_female/SRR3111536.tab")
+SRR3111537 <- file.path(projectDir, "rawData/placenta_female/SRR3111537.tab")
+```
+
+# import rawCounts
+```{r}
+# import the counts table
+## SRR3111523
+SRR3111523 <- read_delim(file = SRR3111523,
+                        col_names = FALSE,
+                        delim = "\t") %>%
+  as.data.frame() %>%
+  dplyr::select(ensemble=X1,SRR3111523=X2)
+
+## SRR3111524
+SRR3111524 <- read_delim(file = SRR3111524,
+                          col_names = FALSE,
+                          delim = "\t") %>%
+  as.data.frame() %>%
+  dplyr::select(ensemble=X1,SRR3111524=X2)
+
+## SRR3111527
+SRR3111527  <- read_delim(file = SRR3111527,
+                        col_names = FALSE,
+                        delim = "\t") %>%
+  as.data.frame() %>%
+  dplyr::select(ensemble=X1,SRR3111527=X2)
+
+## SRR3111530
+SRR3111530 <- read_delim(file = SRR3111530,
+                        col_names = FALSE,
+                        delim = "\t") %>%
+  as.data.frame() %>%
+  dplyr::select(ensemble=X1,SRR3111530=X2)
+
+## SRR3111531
+SRR3111531 <- read_delim(file = SRR3111531,
+                        col_names = FALSE,
+                        delim = "\t") %>%
+  as.data.frame() %>%
+  dplyr::select(ensemble=X1,SRR3111531=X2)
+
+## SRR3111532
+SRR3111532 <- read_delim(file = SRR3111532,
+                        col_names = FALSE,
+                        delim = "\t") %>%
+  as.data.frame() %>%
+  dplyr::select(ensemble=X1,SRR3111532=X2)
+
+## SRR3111536
+SRR3111536 <- read_delim(file = SRR3111536,
+                        col_names = FALSE,
+                        delim = "\t") %>%
+  as.data.frame() %>%
+  dplyr::select(ensemble=X1,SRR3111536=X2)
+
+## SRR3111537
+SRR3111537 <- read_delim(file = SRR3111537,
+                        col_names = FALSE,
+                        delim = "\t") %>%
+  as.data.frame() %>%
+  dplyr::select(ensemble=X1,SRR3111537=X2)
+```
+
+# stitching the samples together
+```{r}
+mergedCounts_placentaFemale <- dplyr::left_join(SRR3111523,SRR3111524, by="ensemble") %>%
+  dplyr::left_join(.,SRR3111527, by="ensemble") %>%
+  dplyr::left_join(.,SRR3111530, by="ensemble") %>%
+  dplyr::left_join(.,SRR3111532, by="ensemble") %>%
+  dplyr::left_join(.,SRR3111532, by="ensemble") %>%
+  dplyr::left_join(.,SRR3111536, by="ensemble") %>%
+  dplyr::left_join(.,SRR3111537, by="ensemble") 
+
+# remove rows with all zeros
+mergedCounts_placentaFemale <- mergedCounts_placentaFemale[rowSums(mergedCounts_placentaFemale[,-1])>0,] 
+rownames(mergedCounts_placentaFemale) <- NULL
+```
+
+# remove the number after the period
+```{r}
+mergedCounts_placentaFemale %<>% tidyr::separate(., col = ensemble, into = c("ensemble", "right")) %>%
+  dplyr::select(., -right) %>%
+distinct(ensemble, .keep_all = TRUE) %>%
+  tibble::column_to_rownames("ensemble")
+```
+
+# library size scatter plot 
+```{r}
+# make a small data frame with information needed for the plot
+plotData_placentaFemale <- mergedCounts_placentaFemale %>%
+  colSums(.) %>%
+  as.data.frame() %>%
+  tibble::rownames_to_column() %>%
+  set_colnames(c("sample", "totalCounts")) %>%
+  arrange(., totalCounts)
+
+# make the plot
+ggplot(data = plotData_placentaFemale,
+       aes(x=reorder(sample, totalCounts),
+           y=totalCounts,
+           colour=totalCounts<9000000)) +
+
+  geom_point(size=5) +
+  scale_colour_manual(name='Read count\nthreshold',
+                      values=setNames(c('red','green'),
+                                      c(TRUE, FALSE))) +
+
+  geom_hline(yintercept=9000000,
+             show.legend=FALSE,
+             linetype="dotted",
+             colour="red") +
+
+
+  ggtitle("Raw counts placenta female - all samples\n(hg38)") +
+  theme_bw(base_size=16) +
+  labs(title="Library size",
+       subtitle="Raw mRNA read counts in placenta female",
+       x="Sample name",
+       y="mRNA read counts") +
+  
+  theme(axis.text.x=element_text(angle=270,
+                                 hjust=1.5,
+                                 colour="black",
+                                 size=12),
+
+        axis.text.y = element_text(angle=0,
+                                   colour="black",
+                                   size=14))
+```
+
+# output file
+```{r}
+write.csv(mergedCounts_placentaFemale, file = file.path(projectDir, "rawData/combinedRaw/rawCounts_placentaFemale.csv"))
+```

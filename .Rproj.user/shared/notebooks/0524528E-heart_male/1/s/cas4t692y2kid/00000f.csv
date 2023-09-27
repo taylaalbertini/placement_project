@@ -1,0 +1,35 @@
+"0","library(plyr)"
+"0","library(reshape2)"
+"0","library(dplyr)"
+"2","
+Attaching package: ‘dplyr’
+
+"
+"2","The following objects are masked from ‘package:plyr’:
+
+    arrange, count, desc, failwith, id, mutate, rename, summarise, summarize
+
+"
+"2","The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+"
+"2","The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+"
+"0","library(stringr)"
+"0","library(readxl)"
+"0","library(readr)"
+"0","library(magrittr)"
+"0","library(ggplot2)"
+"0",""
+"0","# set project directory"
+"0","projectDir <- ""/Users/taylaalbertini/Desktop/R studio/count_preprocessing"""
+"0","ERR2704712 <- file.path(projectDir, ""rawData/heart_male/ERR2704712.tab"")"
+"0","ERR2704714 <- file.path(projectDir, ""rawData/heart_male/ERR2704714.tab"")"
+"0","ERR2704715 <- file.path(projectDir, ""rawData/heart_male/ERR2704715.tab"")"
+"0","ERR2704716 <- file.path(projectDir, ""rawData/heart_male/ERR2704716.tab"")"
+"0","ERR2704719 <- file.path(projectDir, ""rawData/heart_male/ERR2704719.tab"")"
