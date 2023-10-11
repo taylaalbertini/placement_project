@@ -19,6 +19,9 @@ library(readr)
 library(magrittr)
 library(ggplot2)
 library(edgeR)
+library(limma)
+library(Glimma)
+library(RColorBrewer)
 
 # set project directory
 projectDir <- "/Users/taylaalbertini/Desktop/R studio/count_preprocessing/rawData/combinedRaw"
@@ -142,20 +145,192 @@ rawCounts_protein <- subset(total_rawCounts, rownames(total_rawCounts) %in% genc
 
 # creating DGEobject
 ```{r}
-dge_list_object <- edgeR::DGEList(
+dge_object <- edgeR::DGEList(
   counts = rawCounts_protein,
   samples = metaData,
   group = metaData$Tissue,
   genes = rownames(rawCounts_protein))
 ```
 
-
-
 # normalisation of the DGEobject
 ```{r}
-dge_list_object <- calcNormFactors(dge_list_object,
+# TMM normalisation
+dge_object_norm <- calcNormFactors(dge_object,
                                         method = "TMM")
+
+# convert normalised counts into CPM
+cpm_dgeList <- cpm(dge_object_norm, log = FALSE)
+
+# logCPM
+lcpm_dgeList <- cpm(dge_object_norm, log = TRUE)
+
+# mean and median of samples in dge_list_object 
+L <- mean(dge_object_norm$samples$lib.size) * 1e-6
+M <- median(dge_object_norm$samples$lib.size) * 1e-6
+c(L, M)
+
+# summary statistics of logCPMs 
+summary(lcpm_dgeList)
 ```
+
+# normalised vs unnormalised box plot
+```{r}
+# pre-plot processing
+dge_unnorm <- dge_object
+dge_norm <- dge_object_norm
+
+# box plot of unnormalised expression distribution
+par(mfrow=c(1,2))
+lcpm_unnorm <- cpm(dge_unnorm, log=TRUE)
+boxplot(lcpm_unnorm, ylab="Log-cpm", las=2, col=blues9, main="Unnormalised data")
+
+# box plot of normalised expression distribution
+lcpm_norm <- cpm(dge_norm, log=TRUE)
+boxplot(lcpm_norm, ylab="Log-cpm", las=2, col=blues9, main="Normalised Data")
+```
+
+# plotMDS of tissue expression distribution
+```{r}
+lcpm <- cpm(dge_object_norm, log = TRUE)
+par(mfrow=c(1,2))
+col.group <- dge_object_norm$Tissues
+col.group <- as.character(col.group)
+col.lane <- dge_object_norm$Tissues
+col.lane <- as.character(col.lane)
+plotMDS(lcpm, labels=dge_object_norm$Tissues, col=blues9, main="Tissues")
+plotMDS(lcpm, main="Tissues", labels=dge_object_norm$Tissues, col=blues9, dim=c(3,4))
+```
+
+# finding the sex of unknown stomach samples
+```{r}
+# make a dge object for rawCounts
+raw_dge_object <- edgeR::DGEList(
+  counts = total_rawCounts,
+  samples = metaData,
+  group = metaData$Tissue,
+  genes = rownames(total_rawCounts))
+
+# TMM normalisation
+raw_dge_object_norm <- calcNormFactors(raw_dge_object,
+                                        method = "TMM")
+# convert normalised counts into CPM
+raw_cpm_dgeList <- cpm(raw_dge_object_norm, log = TRUE)
+
+
+# make cpm_dgelist a dataframe and convert rows to column 
+raw_cpm_dgeList <- as.data.frame(raw_cpm_dgeList) %>%
+  tibble::rownames_to_column("ensembl") 
+
+# filter for xist and sry genes
+raw_cpm_filtered <- dplyr::filter(raw_cpm_dgeList, ensembl == "ENSG00000184895" | ensembl == "ENSG00000229807")
+
+# incorperate metadata
+cpm_sexDetermination <- t(raw_cpm_filtered) %>%
+  data.frame() 
+colnames(cpm_sexDetermination) <- c("ENSG00000229807", "ENSG00000184895")
+cpm_sex <- cpm_sexDetermination[-1,]
+
+cpm_sex <- tibble::rownames_to_column(cpm_sex,"SRR_ID") 
+
+cpm_meta <- dplyr::left_join(cpm_sex, raw_dge_object_norm$samples[, c("SRR_ID", "Sex")], by = join_by(SRR_ID))
+  
+# convert to long table
+cpm_plot <- tidyr::gather(cpm_meta, Gene, counts, ENSG00000184895, ENSG00000229807)
+
+# plot xist and sry 
+cpm_plot %>% ggplot(., aes(x = Gene,
+                           y = counts)) +
+  geom_point(aes(colour=factor(Sex)))
+```
+
+# cpm average tissue
+```{r}
+# use the edgeR built in function `cpm()` to make a new table of cpm counts
+cpms <- edgeR::cpm(dge_object_norm, log = FALSE)
+# remove SRR5309850
+cpms <- cpms[,-27]
+# use the cpms dataframe to grab all the ensembl IDs for the genes
+genes_to_average <- rownames(cpms)
+# create a new object for the mean cpms
+# first step is to transform the matrix (flip it 90' so genes are now in the columns and samples are in the rows)
+mean_cpms <- t(cpms) %>%
+  # make sure you have a data frame
+  data.frame() %>%
+  # move the samplenames into a column (we need this to join the metadata table)
+  tibble::rownames_to_column("SRR_ID") %>%
+  # join the counts and the metadata table (but we only want the samplename and tissue columns for your data so we're subsetting using the square brackets)
+  dplyr::left_join(., dge_object_norm$samples[, c("SRR_ID", "Tissue")], by = join_by(SRR_ID)) %>%
+  # drop the samplename column again (it was added by the join)
+  dplyr::select(., -SRR_ID) %>%
+  # group by the column of interest. Here I've use the "sex_outcome" column but in your data it will be the "tissue" column
+  group_by(Tissue) %>%
+  # calculate the mean cpms of all genes (using the ensembl gene vector we made earlier)
+  dplyr::summarise_at(vars(genes_to_average), mean)
+```
+
+# export mean_cpms 
+```{r}
+write.csv(mean_cpms, file = file.path(projectDir, "mean_cpms.csv"))
+```
+
+# subset tissues into female_tissue and male_tissue dataframes
+```{r}
+# create a new df of tissue, sex and 
+dge_object_df <- as.data.frame(dge_object_norm)
+
+dge_object_dataFrame <- t(dge_object_norm) %>%
+  data.frame() %>%
+  dplyr::left_join(., dge_object_norm$samples[, c("SRR_ID", "Tissue")], by = join_by(SRR_ID)) %>%
+  dplyr::select(., -SRR_ID) %>%
+  dplyr::mutate(Sex_Tissue = paste(Sex, Tissue, sep = "_") %>%
+                  group_by(Sex_Tissue)
+```
+
+# cpm average by sex_tissue
+```{r}
+# use the edgeR built in function `cpm()` to make a new table of cpm counts
+cpms_sex <- edgeR::cpm(dge_object_norm, log = FALSE)
+# remove SRR5309850
+cpms_sex <- cpms_sex[,-27]
+# use the cpms dataframe to grab all the ensembl IDs for the genes
+genes_to_average <- rownames(cpms_sex)
+# create a new object for the mean cpms
+# first step is to transform the matrix (flip it 90' so genes are now in the columns and samples are in the rows)
+mean_sex_tissue_cpms <- t(cpms_sex) %>%
+  # make sure you have a data frame
+  data.frame() %>%
+  # move the samplenames into a column (we need this to join the metadata table)
+  tibble::rownames_to_column("SRR_ID") %>%
+  # join the counts and the metadata table (but we only want the samplename and tissue columns for your data so we're subsetting using the square brackets)
+  dplyr::left_join(., dge_object_norm$samples[, c("SRR_ID", "Tissue", "Sex")], by = join_by(SRR_ID)) %>%
+  # drop the samplename column again (it was added by the join)
+  dplyr::select(., -SRR_ID) %>%
+   # add a column
+  dplyr::mutate(Sex_Tissue = paste(Sex, Tissue, sep = "_")) %>%
+  # group by the column of interest. Here I've use the "sex_outcome" column but in your data it will be the "tissue" column
+  group_by(Sex_Tissue) %>%
+  # calculate the mean cpms of all genes (using the ensembl gene vector we made earlier)
+  dplyr::summarise_at(vars(genes_to_average), mean)
+```
+
+# subset Sex_Tissue into female and male dataframes 
+```{r}
+# female
+## subsettng data
+mean_female_cpms <- subset(mean_sex_tissue_cpms, startsWith(Sex_Tissue, "Female_"))
+## exporting data
+write.csv(mean_female_cpms, file = file.path(projectDir, "mean_female_cpms.csv"))
+
+#male
+## subsetting data
+mean_male_cpms <- subset(mean_sex_tissue_cpms, startsWith(Sex_Tissue, "Male_"))
+##exporting data
+write.csv(mean_male_cpms, file = file.path(projectDir, "mean_male_cpms.csv"))
+```
+
+
+
+
 
 
 
