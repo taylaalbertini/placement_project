@@ -1,0 +1,72 @@
+---
+title: "analysis"
+output: html_document
+date: "2023-10-16"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# load libraries
+```{r}
+library(plyr)
+library(reshape2)
+library(dplyr)
+library(stringr)
+library(readxl)
+library(readr)
+library(magrittr)
+library(ggplot2)
+library(edgeR)
+library(limma)
+library(Glimma)
+library(RColorBrewer)
+
+# set project directory
+projectDir <- "/Users/taylaalbertini/Desktop/R studio/count_preprocessing/rawData/combinedRaw"
+import_placenta_annotated <- file.path(projectDir, "placenta_annotated.csv")
+import_placenta_female_annotated <- file.path(projectDir, "placenta_female_annotated.csv")
+import_placenta_male_annotated <- file.path(projectDir, "placenta_male_annotated.csv")
+import_depleted_paper <- file.path(projectDir, "Depleted_Paper.csv")
+```
+
+# import data
+```{r}
+# import placenta_annotated
+placenta_annotated <- read_delim(file = import_placenta_annotated,
+                           col_names = TRUE, 
+                          delim = ",") 
+
+# import placenta_female_annotated
+placenta_female_annotated <- read_delim(file = import_placenta_female_annotated,
+                           col_names = TRUE, 
+                          delim = ",") 
+
+# import placenta_male_annotated
+placenta_male_annotated <- read_delim(file = import_placenta_male_annotated,
+                           col_names = TRUE, 
+                          delim = ",") 
+
+# import depleted_paper
+depleted_paper <- read_delim(file = import_depleted_paper,
+                           col_names = TRUE, 
+                          delim = ",") 
+
+# make a list of ensembl ids
+placenta_depleted <- placenta_annotated$ensembl
+placenta_female_depleted <- placenta_female_annotated$ensembl
+placenta_male_depleted <- placenta_male_annotated$ensembl
+paper_depleted <- depleted_paper$ensembl
+
+# install VennDiagram
+library(VennDiagram)
+
+# create the Venn Diagram of my depleted placenta ensembls
+venn.diagram(list("Placenta"=placenta_depleted, "Female"=placenta_female_depleted, "Male"=placenta_male_depleted), fill=c("yellow", "cyan", "purple"), cex=1, filename = "/Users/taylaalbertini/Desktop/Depleted_Placenta.png", output=TRUE)
+
+# create the Venn Diagram of my paper and my depleted samples
+venn.diagram(list("Placenta"=placenta_depleted, "Female"=placenta_female_depleted, "Male"=placenta_male_depleted, "Gong et al."=paper_depleted), fill=c("yellow", "cyan", "purple","palegreen3"), cex=1, filename = "/Users/taylaalbertini/Desktop/Depleted_Paper_Placenta.png", output=TRUE)
+
+```
+

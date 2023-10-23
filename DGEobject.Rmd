@@ -117,6 +117,7 @@ gencode <- read_delim(file = gencode_file,
   as.data.frame()
 ```
 
+
 # merge data using dplyr outer join
 ```{r}
 # merge data to create total_rawCounts
@@ -141,6 +142,7 @@ gencode_protein <- dplyr::filter(gencode, gene_type == "protein_coding")
 
 # subset total_rawCounts to only include protein coding genes
 rawCounts_protein <- subset(total_rawCounts, rownames(total_rawCounts) %in% gencode_protein$ensembl)
+
 ```
 
 # creating DGEobject
@@ -157,6 +159,8 @@ dge_object <- edgeR::DGEList(
 # TMM normalisation
 dge_object_norm <- calcNormFactors(dge_object,
                                         method = "TMM")
+
+summary(dge_object_norm$samples$lib.size)
 
 # convert normalised counts into CPM
 cpm_dgeList <- cpm(dge_object_norm, log = FALSE)
@@ -271,19 +275,6 @@ mean_cpms <- t(cpms) %>%
 # export mean_cpms 
 ```{r}
 write.csv(mean_cpms, file = file.path(projectDir, "mean_cpms.csv"))
-```
-
-# subset tissues into female_tissue and male_tissue dataframes
-```{r}
-# create a new df of tissue, sex and 
-dge_object_df <- as.data.frame(dge_object_norm)
-
-dge_object_dataFrame <- t(dge_object_norm) %>%
-  data.frame() %>%
-  dplyr::left_join(., dge_object_norm$samples[, c("SRR_ID", "Tissue")], by = join_by(SRR_ID)) %>%
-  dplyr::select(., -SRR_ID) %>%
-  dplyr::mutate(Sex_Tissue = paste(Sex, Tissue, sep = "_") %>%
-                  group_by(Sex_Tissue)
 ```
 
 # cpm average by sex_tissue

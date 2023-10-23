@@ -1,0 +1,258 @@
+---
+title: "tissueRank_analysis"
+output: html_document
+date: "2023-10-10"
+---
+
+# load libraries
+```{r}
+library(plyr)
+library(reshape2)
+library(dplyr)
+library(stringr)
+library(readxl)
+library(readr)
+library(magrittr)
+library(ggplot2)
+library(edgeR)
+library(limma)
+library(Glimma)
+library(RColorBrewer)
+
+# set project directory
+projectDir <- "/Users/taylaalbertini/Desktop/R studio/count_preprocessing/rawData/combinedRaw"
+import_mean_cpms <- file.path(projectDir, "mean_cpms.csv")
+gencode_file <- file.path(projectDir, "gencode_v32_gene_id_symbol_chr_biotype.csv")
+```
+
+# import data
+```{r}
+# import the mean tissue cpms table
+mean_tissue_cpms <- read_delim(file = import_mean_cpms,
+                           col_names = TRUE, 
+                          delim = ",") 
+
+# remove the first column - "Sample" no.
+mean_tissue_cpms <- mean_tissue_cpms[,-1]
+
+# copy of mean_cpms for subsequent analysis
+mean_tissue_cpms_cp <- as.data.frame(mean_tissue_cpms)
+
+#gencode
+gencode <- read_delim(file = gencode_file,
+                       col_names = TRUE,
+                       delim = ",") %>%
+  as.data.frame()
+```
+
+# ranking normalised cpms by tissue
+```{r}
+# make calculate_rank a function 
+calculate_rank <- function(x) {
+  return(rank(-x))
+}
+
+# ranking normalised cpms by tissue
+mean_tissue_cpms[, paste0(names(mean_tissue_cpms)[-1], "_Rank")] <- apply(mean_tissue_cpms [, -1, drop = FALSE], 2, calculate_rank) 
+
+# craete a df selecting just for _Rank  
+ranked_tissue_cpms <- data.frame(mean_tissue_cpms) %>%
+  dplyr::select(ends_with("Rank"))
+```
+
+# isolating all the instances where placenta is ranked 4th
+```{r}
+# isolating all instances where placenta ranked 4th in tissue ranking
+  ## make samples a column
+  ranked_tissue_cpms <- as.data.frame(ranked_tissue_cpms) %>%
+    tibble::rownames_to_column("Sample")
+  ## create a dataframe with geneid in rows and samples in columns
+  ranked_tissues <- t(ranked_tissue_cpms) %>%
+    data.frame() %>%
+    tibble::rownames_to_column("geneid")
+  ## delete the Sample row
+  ranked_tissues <- ranked_tissues[-1,]
+  ## tidy up the column names
+  colnames(ranked_tissues) <- gsub("X1", "Heart", colnames(ranked_tissues))
+  colnames(ranked_tissues) <- gsub("X2", "Muscle", colnames(ranked_tissues))
+  colnames(ranked_tissues) <- gsub("X3", "Placenta", colnames(ranked_tissues))
+  colnames(ranked_tissues) <- gsub("X4", "Stomach", colnames(ranked_tissues))
+  ## select for the instances where 
+  placenta_4th <- subset(ranked_tissues, Placenta == "4")
+```
+
+# nCPM > 1 for tissue rank 3
+```{r}
+# remove "_Rank" from placenta_4th 
+# remove placenta column
+# convert into long form
+rank_comparison <- tidyr::separate(placenta_4th,col = geneid,into = c("geneid","right")) %>%
+  dplyr::select(.,-right) %>%
+  dplyr::select(.,-Placenta) %>%
+  tidyr::gather(., Tissue, Rank, Heart, Muscle, Stomach)
+
+# nCPMs
+## remove columns ending in "_Rank"
+## create a dataframe with geneid in rows and samples in columns
+## removed placenta column
+nCPMs <- t(mean_tissue_cpms_cp) %>%
+  data.frame() %>%
+  tibble::rownames_to_column("geneid") %>%
+  dplyr::select(.,-X3)
+  ## delete the Sample row
+  nCPMs <- nCPMs[-1,]
+  ## tidy up the column names
+  colnames(nCPMs) <- gsub("X1", "Heart", colnames(nCPMs)) 
+  colnames(nCPMs) <- gsub("X2", "Muscle", colnames(nCPMs)) 
+  colnames(nCPMs) <- gsub("X4", "Stomach", colnames(nCPMs)) 
+
+# convert nCPM into long form 
+nCPMs <- tidyr::gather(nCPMs, Tissue, nCPMs, Heart, Muscle, Stomach)  
+
+# left joining the nCPMs with rank_comparison
+tissue_analysis <- dplyr::left_join(rank_comparison, nCPMs, copy = TRUE, by = join_by(geneid, Tissue))
+
+# filter for rows with rank =3 and nCPM = >1
+third_rank_fulfill <- tissue_analysis[tissue_analysis$Rank == 3 & tissue_analysis$nCPMs > 1,]
+```
+
+# nCPM(rank=3)/nCPM(rank=4) > 3
+```{r}
+# create df in long form with all genes placenta is ranked 4th in
+placenta_ratio <- tidyr::separate(placenta_4th,col = geneid,into = c("geneid","right")) %>%
+  dplyr::select(.,-right) %>%
+  dplyr::select(.,-c("Heart", "Stomach", "Muscle")) %>%
+  tidyr::gather(., Tissue, Rank, Placenta)
+
+# create nCPM 
+nCPMs2 <- t(mean_tissue_cpms_cp) %>%
+  data.frame() %>%
+  tibble::rownames_to_column("geneid") %>%
+  dplyr::select(.,-c("X1", "X2", "X4"))
+  ## delete the Sample row
+  nCPMs2 <- nCPMs2[-1,]
+  ## tidy up the column names
+  colnames(nCPMs2) <- gsub("X3", "nCPMs_4", colnames(nCPMs2)) 
+
+# left join nCPMs2 with placenta_ratio
+nCPM4_table <- dplyr::left_join(placenta_ratio, nCPMs2, copy = TRUE, by = join_by(geneid))
+
+# left join nCPM3_nCPM4_table to third_rank_fulfill by geneid
+nCPM3_nCPM4_table <- dplyr::left_join(third_rank_fulfill, nCPM4_table, copy = TRUE, by = join_by(geneid))
+
+# convert nCPMs and nCPMs_4 to numeric from character
+# create a new column nCPM3/nCPM4
+nCPM3_nCPM4_table$nCPMs_4 <- as.numeric(nCPM3_nCPM4_table$nCPMs_4)
+nCPM3_nCPM4_table$nCPMs <- as.numeric(nCPM3_nCPM4_table$nCPMs)
+nCPM3_nCPM4_table$nCPM_ratio <- nCPM3_nCPM4_table$nCPMs / nCPM3_nCPM4_table$nCPMs_4
+
+# select for nCPM_ratio > 3
+placenta_depleted <- nCPM3_nCPM4_table[nCPM3_nCPM4_table$nCPM_ratio >3,]
+```
+
+# left join gene signature with depleted ensembl id
+```{r}
+# replace geneid with ensembl
+colnames(placenta_depleted) <- gsub("geneid", "ensembl", colnames(placenta_depleted)) 
+
+# left join genecode and placenta_depleted
+placenta_annotated <- dplyr::left_join(placenta_depleted, gencode, by = join_by(ensembl))
+
+# tidy up placenta_annotated
+placenta_annotated <- dplyr::select(placenta_annotated, -c("Rank.x", "Rank.y"))
+```
+
+# export placenta_annotated 
+```{r}
+write.csv(placenta_annotated, file = file.path(projectDir, "placenta_annotated.csv"))
+```
+
+# creating a heatmap of nCPMs for all tissues
+```{r}
+library(pheatmap)
+library(RColorBrewer)
+
+# converting mean_tissue_cpms to geneid in rows 
+data <- t(mean_tissue_cpms_cp) %>%
+  data.frame() %>%
+  tibble::rownames_to_column("geneid")
+colnames(data) <- gsub("X1", "Heart", colnames(data)) 
+  colnames(data) <- gsub("X2", "Muscle", colnames(data)) 
+  colnames(data) <- gsub("X3", "Placenta", colnames(data)) 
+  colnames(data) <- gsub("X4", "Stomach", colnames(data)) 
+    data <- data[-1,]
+
+# make data numeric
+data$Heart <- as.numeric(data$Heart)
+data$Muscle <- as.numeric(data$Muscle)
+data$Stomach <- as.numeric(data$Stomach)
+data$Placenta <- as.numeric(data$Placenta)
+
+# convert geneid column into rows
+data_2 <- data[,-1]
+rownames(data_2) <- data[,1]
+
+data_2_relocate <- dplyr::relocate(data_2, Placenta, .after = Stomach)
+
+# descending order nCPMs
+placenta_descending <- placenta_annotated %>%
+  dplyr::arrange(desc(nCPMs_4)) 
+
+# create heatmap 
+pheatmap(log10(data_2_relocate[placenta_descending$ensembl,]+0.001),
+         cluster_cols = FALSE,
+         cluster_rows = FALSE,
+         show_rownames = FALSE)
+
+png(projectDir, "heatmap_placenta.png", width = 465, height = 225, units='mm', res = 300)
+pheatmap(log10(data_2_relocate[placenta_descending$ensembl,]+0.001),
+         cluster_cols = FALSE,
+         cluster_rows = FALSE,
+         show_rownames = FALSE)
+dev.off()
+
+```
+
+# downloading the descriptions of each hgnc symbol
+```{r}
+if (!require("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+
+deps <- c("ensembldb", "AnnotationHub")
+sapply(deps, function(x){
+  if (!require(x, quietly = TRUE, character.only = TRUE))
+    BiocManager::install(x)
+})
+
+library(ensembldb)
+library(AnnotationHub)
+# lets take a snapshot of the AnnotationHub data base
+ah <- AnnotationHub(ask = FALSE)
+# take a look at the information inside
+mcols(ah)
+# use the `query()` function to extract the information for humans
+ensdb_homo <- query(ah, c("EnsDb", "Homo sapiens"))
+# keep only the information for AH95744 (which is the same as your gencode V32)
+ensdb_104 <- ensdb_homo[["AH95744"]]
+# Extract gene-level information and take a look
+genes(ensdb_104, return.type = "data.frame") %>% View()
+# now put that gene-level information into a data frame
+genes_info <- genes(ensdb_104, return.type = "data.frame")
+```
+
+# left join descriptions
+```{r}
+colnames(genes_info) <- gsub("gene_id", "ensembl", colnames(genes_info)) 
+placenta_descriptions <- dplyr::left_join(placenta_annotated, genes_info, by = join_by(ensembl))
+placenta_descriptions <- placenta_descriptions[,-10]
+placenta_descriptions <- placenta_descriptions[,-10:-15]
+placenta_descriptions <- placenta_descriptions[,-11:-14]
+```
+
+# export placenta_descriptions
+```{r}
+write.csv(placenta_descriptions, file = file.path(projectDir, "placenta_descriptions.csv"))
+```
+
+
+

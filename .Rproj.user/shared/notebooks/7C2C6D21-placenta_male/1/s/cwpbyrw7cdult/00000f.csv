@@ -1,10 +1,102 @@
 "0","library(plyr)"
+"2","
+Attaching package: 'plyr'
+
+"
+"2","The following object is masked from 'package:IRanges':
+
+    desc
+
+"
+"2","The following object is masked from 'package:S4Vectors':
+
+    rename
+
+"
 "0","library(reshape2)"
 "0","library(dplyr)"
+"2","
+Attaching package: 'dplyr'
+
+"
+"2","The following objects are masked from 'package:plyr':
+
+    arrange, count, desc, failwith, id, mutate, rename, summarise, summarize
+
+"
+"2","The following objects are masked from 'package:ensembldb':
+
+    filter, select
+
+"
+"2","The following object is masked from 'package:AnnotationDbi':
+
+    select
+
+"
+"2","The following object is masked from 'package:Biobase':
+
+    combine
+
+"
+"2","The following objects are masked from 'package:GenomicRanges':
+
+    intersect, setdiff, union
+
+"
+"2","The following object is masked from 'package:GenomeInfoDb':
+
+    intersect
+
+"
+"2","The following objects are masked from 'package:IRanges':
+
+    collapse, desc, intersect, setdiff, slice, union
+
+"
+"2","The following objects are masked from 'package:S4Vectors':
+
+    first, intersect, rename, setdiff, setequal, union
+
+"
+"2","The following objects are masked from 'package:dbplyr':
+
+    ident, sql
+
+"
+"2","The following objects are masked from 'package:BiocGenerics':
+
+    combine, intersect, setdiff, union
+
+"
+"2","The following objects are masked from 'package:stats':
+
+    filter, lag
+
+"
+"2","The following objects are masked from 'package:base':
+
+    intersect, setdiff, setequal, union
+
+"
 "0","library(stringr)"
 "0","library(readxl)"
 "0","library(readr)"
 "0","library(magrittr)"
+"2","
+Attaching package: 'magrittr'
+
+"
+"2","The following object is masked from 'package:AnnotationFilter':
+
+    not
+
+"
+"2","The following object is masked from 'package:GenomicRanges':
+
+    subtract
+
+"
 "0","library(ggplot2)"
 "0",""
 "0","# set project directory"

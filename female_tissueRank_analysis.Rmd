@@ -1,0 +1,226 @@
+---
+title: "female_tissueRank_analysis"
+output: html_document
+date: "2023-10-10"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# load libraries
+```{r}
+library(plyr)
+library(reshape2)
+library(dplyr)
+library(stringr)
+library(readxl)
+library(readr)
+library(magrittr)
+library(ggplot2)
+library(edgeR)
+library(limma)
+library(Glimma)
+library(RColorBrewer)
+
+# set project directory
+projectDir <- "/Users/taylaalbertini/Desktop/R studio/count_preprocessing/rawData/combinedRaw"
+import_mean_female_cpms <- file.path(projectDir, "mean_female_cpms.csv")
+gencode_file <- file.path(projectDir, "gencode_v32_gene_id_symbol_chr_biotype.csv")
+```
+
+# import data
+```{r}
+# import the mean female cpms table
+mean_female_cpms <- read_delim(file = import_mean_female_cpms,
+                           col_names = TRUE, 
+                          delim = ",") 
+
+# remove the first column - "Sample" no.
+mean_female_cpms <- mean_female_cpms[,-1]
+
+# copy of mean_cpms for subsequent analysis
+mean_female_cpms_cp <- as.data.frame(mean_female_cpms)
+
+#gencode
+gencode <- read_delim(file = gencode_file,
+                       col_names = TRUE,
+                       delim = ",") %>%
+  as.data.frame()
+```
+
+# ranking normalised cpms by female_tissue
+```{r}
+# make calculate_rank a function 
+calculate_rank <- function(x) {
+  return(rank(-x))
+}
+
+# ranking normalised cpms by female_tissue
+mean_female_cpms[, paste0(names(mean_female_cpms)[-1], "_Rank")] <- apply(mean_female_cpms [, -1, drop = FALSE], 2, calculate_rank) 
+
+# craete a df selecting just for _Rank    
+ranked_female_cpms <- data.frame(mean_female_cpms) %>%
+  dplyr::select(matches("_Rank"))
+```
+
+# isolating all the instances where placenta is ranked 8th
+```{r}
+# isolating all instances where placenta ranked 4th in tissue ranking
+  ## make samples a column
+  ranked_female_cpms <- as.data.frame(ranked_female_cpms) %>%
+    tibble::rownames_to_column("Sample")
+  ## create a dataframe with geneid in rows and samples in columns
+  ranked_female <- t(ranked_female_cpms) %>%
+    data.frame() %>%
+    tibble::rownames_to_column("geneid")
+  ## delete the Sample row
+  ranked_female <- ranked_female[-1,]
+  ## tidy up the column names
+  colnames(ranked_female) <- gsub("X1", "Female_Heart", colnames(ranked_female))
+  colnames(ranked_female) <- gsub("X2", "Female_Muscle", colnames(ranked_female))
+  colnames(ranked_female) <- gsub("X3", "Female_Placenta", colnames(ranked_female))
+  colnames(ranked_female) <- gsub("X4", "Female_Stomach", colnames(ranked_female))
+  ## select for the instances where 
+  placenta_female_4th <- subset(ranked_female, Female_Placenta == "4")
+```
+
+# nCPM > 1 for tissue rank 3
+```{r}
+# remove "_Rank" from placenta_4th 
+# remove placenta column
+# convert into long form
+rank_comparison_female <- tidyr::separate(placenta_female_4th,col = geneid,into = c("geneid","right")) %>%
+  dplyr::select(.,-right) %>%
+  dplyr::select(.,-Female_Placenta) %>%
+  tidyr::gather(., Tissue, Rank, Female_Heart, Female_Muscle, Female_Stomach)
+
+# nCPMs_female
+## remove columns ending in "_Rank"
+## create a dataframe with geneid in rows and samples in columns
+## removed placenta column
+nCPMs_female <- t(mean_female_cpms_cp) %>%
+  data.frame() %>%
+  tibble::rownames_to_column("geneid") %>%
+  dplyr::select(.,-X3)
+  ## delete the Sample row
+  nCPMs_female <- nCPMs_female[-1,]
+  ## tidy up the column names
+  colnames(nCPMs_female) <- gsub("X1", "Female_Heart", colnames(nCPMs_female)) 
+  colnames(nCPMs_female) <- gsub("X2", "Female_Muscle", colnames(nCPMs_female)) 
+  colnames(nCPMs_female) <- gsub("X4", "Female_Stomach", colnames(nCPMs_female)) 
+
+# convert nCPM into long form 
+nCPMs_female <- tidyr::gather(nCPMs_female, Tissue, nCPMs, Female_Heart, Female_Muscle, Female_Stomach)  
+
+# left joining the nCPMs_female with rank_comparison
+female_analysis <- dplyr::left_join(rank_comparison_female, nCPMs_female, copy = TRUE, by = join_by(geneid, Tissue))
+
+# filter for rows with rank =3 and nCPM = >1
+third_rank_female <- female_analysis[female_analysis$Rank == 3 & female_analysis$nCPMs > 1,]
+```
+
+# nCPM(rank=3)/nCPM(rank=4) > 3
+```{r}
+# create df in long form with all genes placenta is ranked 4th in
+female_ratio <- tidyr::separate(placenta_female_4th,col = geneid,into = c("geneid","right")) %>%
+  dplyr::select(.,-right) %>%
+  dplyr::select(.,-c("Female_Heart", "Female_Stomach", "Female_Muscle")) %>%
+  tidyr::gather(., Tissue, Rank, Female_Placenta)
+
+# create nCPM 
+nCPMs2_female <- t(mean_female_cpms_cp) %>%
+  data.frame() %>%
+  tibble::rownames_to_column("geneid") %>%
+  dplyr::select(.,-c("X1", "X2", "X4"))
+  ## delete the Sample row
+  nCPMs2_female <- nCPMs2_female[-1,]
+  ## tidy up the column names
+  colnames(nCPMs2_female) <- gsub("X3", "nCPMs_4", colnames(nCPMs2_female)) 
+
+# left join nCPMs2_female with female_ratio
+nCPM4_female_table <- dplyr::left_join(female_ratio, nCPMs2_female, copy = TRUE, by = join_by(geneid))
+
+# left join nCPM3_nCPM4_female_table to third_rank_fulfill by geneid
+nCPM3_nCPM4_female_table <- dplyr::left_join(third_rank_female, nCPM4_female_table, copy = TRUE, by = join_by(geneid))
+
+# convert nCPMs and nCPMs_4 to numeric from character
+# create a new column nCPM3/nCPM4
+nCPM3_nCPM4_female_table$nCPMs_4 <- as.numeric(nCPM3_nCPM4_female_table$nCPMs_4)
+nCPM3_nCPM4_female_table$nCPMs <- as.numeric(nCPM3_nCPM4_female_table$nCPMs)
+nCPM3_nCPM4_female_table$nCPM_ratio <- nCPM3_nCPM4_female_table$nCPMs / nCPM3_nCPM4_female_table$nCPMs_4
+
+# select for nCPM_ratio > 3
+placenta_female_depleted <- nCPM3_nCPM4_female_table[nCPM3_nCPM4_female_table$nCPM_ratio >3,]
+```
+
+# left join gene signature with depleted ensembl id
+```{r}
+# replace geneid with ensembl
+colnames(placenta_female_depleted) <- gsub("geneid", "ensembl", colnames(placenta_female_depleted)) 
+
+# left join genecode and placenta_female_depleted
+placenta_female_annotated <- dplyr::left_join(placenta_female_depleted, gencode, by = join_by(ensembl))
+
+# tidy up placenta_female_annotated
+placenta_female_annotated <- dplyr::select(placenta_female_annotated, -c("Rank.x", "Rank.y"))
+```
+
+# export placenta_female_annotated 
+```{r}
+write.csv(placenta_female_annotated, file = file.path(projectDir, "placenta_female_annotated.csv"))
+```
+
+# heat map for depleted female placenta genes
+```{r}
+library(pheatmap)
+library(RColorBrewer)
+
+# converting mean_tissue_cpms to geneid in rows 
+data_female <- t(mean_female_cpms) %>%
+  data.frame() %>%
+  tibble::rownames_to_column("geneid")
+colnames(data_female) <- gsub("X1", "Female Heart", colnames(data_female)) 
+  colnames(data_female) <- gsub("X2", "Female Muscle", colnames(data_female)) 
+  colnames(data_female) <- gsub("X3", "Female Placenta", colnames(data_female)) 
+  colnames(data_female) <- gsub("X4", "Female Stomach", colnames(data_female)) 
+    data_female <- data_female[-1,]
+    
+# make data_female numeric
+data_female$`Female Heart` <- as.numeric(data_female$`Female Heart`)
+data_female$`Female Muscle` <- as.numeric(data_female$`Female Muscle`)
+data_female$`Female Stomach` <- as.numeric(data_female$`Female Stomach`)
+data_female$`Female Placenta` <- as.numeric(data_female$`Female Placenta`)
+
+# convert geneid column into rows
+data_female_2 <- data_female[,-1]
+rownames(data_female_2) <- data_female[,1]
+
+data_2_female_relocate <- dplyr::relocate(data_female_2, `Female Placenta`, .after = `Female Stomach`)
+
+# descending order nCPMs
+placenta_female_descending <- placenta_female_annotated %>%
+  dplyr::arrange(desc(nCPMs_4)) 
+
+# create heatmap 
+pheatmap(log10(data_2_female_relocate[placenta_female_descending$ensembl,] + 0.001),
+         cluster_cols = FALSE,
+         cluster_rows = FALSE,
+         show_rownames = FALSE)
+```
+
+# left join descriptions
+```{r}
+placenta_female_descriptions <- dplyr::left_join(placenta_female_annotated, genes_info, by = join_by(ensembl))
+placenta_female_descriptions <- placenta_female_descriptions[,-10]
+placenta_female_descriptions <- placenta_female_descriptions[,-10:-15]
+placenta_female_descriptions <- placenta_female_descriptions[,-11:-14]
+```
+
+# export placenta_female_descriptions
+```{r}
+write.csv(placenta_female_descriptions, file = file.path(projectDir, "placenta_female_descriptions.csv"))
+```
+
+
+
